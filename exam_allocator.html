@@ -1,0 +1,2102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExamSeat Pro — Intelligent Allocation System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --navy: #0A1628;
+  --navy-800: #0F1E35;
+  --navy-700: #152540;
+  --navy-600: #1B2D4F;
+  --teal: #00D4C8;
+  --teal-dim: #00B4A8;
+  --teal-pale: rgba(0,212,200,0.12);
+  --teal-glow: rgba(0,212,200,0.25);
+  --amber: #FFAA40;
+  --amber-pale: rgba(255,170,64,0.12);
+  --rose: #FF5C7A;
+  --rose-pale: rgba(255,92,122,0.12);
+  --green: #22D3A6;
+  --green-pale: rgba(34,211,166,0.12);
+  --sky: #38BEFF;
+  --sky-pale: rgba(56,190,255,0.12);
+  --white: #FFFFFF;
+  --off-white: #F7F9FC;
+  --border: rgba(255,255,255,0.07);
+  --text-primary: #E8EDF5;
+  --text-secondary: #8A9ABB;
+  --text-muted: #4A5A7A;
+  --card-bg: rgba(21,37,64,0.85);
+  --card-border: rgba(255,255,255,0.06);
+  --sidebar-w: 240px;
+  --font-head: 'Sora', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;scroll-behavior:smooth}
+body{font-family:var(--font-head);background:var(--navy);color:var(--text-primary);min-height:100vh;display:flex;overflow:hidden}
+
+/* ─── SIDEBAR ─── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;background:var(--navy-800);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  position:fixed;left:0;top:0;z-index:100;
+}
+.sidebar-logo{
+  padding:24px 20px 16px;
+  border-bottom:1px solid var(--border);
+}
+.logo-icon{
+  width:36px;height:36px;background:linear-gradient(135deg,var(--teal),var(--sky));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;margin-bottom:10px;
+}
+.logo-title{font-size:15px;font-weight:700;color:var(--white);letter-spacing:-0.3px}
+.logo-sub{font-size:11px;color:var(--text-muted);margin-top:2px;font-weight:400}
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:10px;cursor:pointer;border:none;
+  background:transparent;color:var(--text-secondary);
+  font-family:var(--font-head);font-size:13px;font-weight:500;
+  width:100%;text-align:left;transition:all 0.18s ease;
+}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:var(--text-primary)}
+.nav-item.active{background:var(--teal-pale);color:var(--teal)}
+.nav-item.active .nav-dot{background:var(--teal)}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:var(--text-muted);flex-shrink:0;transition:all 0.18s}
+.nav-section-label{
+  font-size:10px;font-weight:600;letter-spacing:0.08em;
+  color:var(--text-muted);padding:14px 12px 6px;text-transform:uppercase;
+}
+.sidebar-footer{
+  padding:16px;border-top:1px solid var(--border);
+}
+.system-badge{
+  background:var(--green-pale);border:1px solid rgba(34,211,166,0.2);
+  border-radius:8px;padding:8px 12px;
+  display:flex;align-items:center;gap:8px;font-size:12px;color:var(--green);
+}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ─── MAIN ─── */
+.main{margin-left:var(--sidebar-w);flex:1;height:100vh;overflow-y:auto;padding:28px 32px}
+.view{display:none;animation:fadeIn 0.2s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── PAGE HEADER ─── */
+.page-header{margin-bottom:28px}
+.page-header h1{font-size:24px;font-weight:700;color:var(--white);letter-spacing:-0.5px}
+.page-header p{font-size:13px;color:var(--text-secondary);margin-top:4px}
+.page-header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.header-actions{display:flex;gap:10px;flex-shrink:0}
+
+/* ─── CARDS ─── */
+.card{
+  background:var(--card-bg);border:1px solid var(--card-border);
+  border-radius:14px;backdrop-filter:blur(8px);overflow:hidden;
+}
+.card-header{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.card-title{font-size:14px;font-weight:600;color:var(--text-primary)}
+.card-body{padding:20px}
+.card-sm .card-body{padding:16px}
+
+/* ─── METRICS GRID ─── */
+.metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.metric-card{
+  border-radius:14px;padding:18px 20px;
+  border:1px solid var(--card-border);position:relative;overflow:hidden;
+}
+.metric-card::before{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:80px;height:80px;border-radius:50%;opacity:0.15;
+}
+.metric-card.blue{background:linear-gradient(135deg,rgba(0,212,200,0.08),rgba(56,190,255,0.04))}.metric-card.blue::before{background:var(--teal)}
+.metric-card.amber{background:linear-gradient(135deg,rgba(255,170,64,0.08),rgba(255,170,64,0.03))}.metric-card.amber::before{background:var(--amber)}
+.metric-card.green{background:linear-gradient(135deg,rgba(34,211,166,0.08),rgba(34,211,166,0.03))}.metric-card.green::before{background:var(--green)}
+.metric-card.rose{background:linear-gradient(135deg,rgba(255,92,122,0.08),rgba(255,92,122,0.03))}.metric-card.rose::before{background:var(--rose)}
+.metric-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:8px}
+.metric-value{font-size:32px;font-weight:800;font-family:var(--font-mono);letter-spacing:-1px}
+.metric-card.blue .metric-value{color:var(--teal)}
+.metric-card.amber .metric-value{color:var(--amber)}
+.metric-card.green .metric-value{color:var(--green)}
+.metric-card.rose .metric-value{color:var(--rose)}
+.metric-change{font-size:11px;color:var(--text-secondary);margin-top:4px}
+
+/* ─── BUTTONS ─── */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
+  border-radius:8px;font-size:13px;font-weight:600;font-family:var(--font-head);
+  border:none;cursor:pointer;transition:all 0.18s ease;white-space:nowrap;
+}
+.btn-primary{background:linear-gradient(135deg,var(--teal),var(--teal-dim));color:var(--navy);box-shadow:0 4px 14px rgba(0,212,200,0.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,212,200,0.4)}
+.btn-secondary{background:rgba(255,255,255,0.07);color:var(--text-primary);border:1px solid var(--border)}
+.btn-secondary:hover{background:rgba(255,255,255,0.12)}
+.btn-outline{background:transparent;color:var(--teal);border:1px solid rgba(0,212,200,0.35)}
+.btn-outline:hover{background:var(--teal-pale)}
+.btn-danger{background:var(--rose-pale);color:var(--rose);border:1px solid rgba(255,92,122,0.25)}
+.btn-danger:hover{background:rgba(255,92,122,0.2)}
+.btn-amber{background:var(--amber-pale);color:var(--amber);border:1px solid rgba(255,170,64,0.25)}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important}
+
+/* ─── FORMS ─── */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em}
+.form-control{
+  width:100%;padding:9px 12px;background:rgba(255,255,255,0.05);
+  border:1px solid var(--border);border-radius:8px;
+  color:var(--text-primary);font-family:var(--font-head);font-size:13px;
+  transition:border-color 0.18s;
+}
+.form-control:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,212,200,0.15)}
+.form-control option{background:var(--navy-700)}
+.checkbox-row{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-primary)}
+.checkbox-row input{accent-color:var(--teal);width:15px;height:15px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+/* ─── TABLES ─── */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+thead th{
+  background:rgba(255,255,255,0.04);padding:11px 14px;text-align:left;
+  font-size:11px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.07em;border-bottom:1px solid var(--border);
+}
+tbody tr{transition:background 0.12s}
+tbody tr:hover{background:rgba(255,255,255,0.03)}
+tbody td{padding:12px 14px;font-size:13px;color:var(--text-secondary);border-bottom:1px solid rgba(255,255,255,0.04)}
+tbody tr:last-child td{border-bottom:none}
+.td-bold{font-weight:600;color:var(--text-primary);font-family:var(--font-mono);font-size:12px}
+.empty-row td{text-align:center;color:var(--text-muted);padding:32px;font-size:13px}
+
+/* ─── BADGES ─── */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+  border-radius:20px;font-size:11px;font-weight:600;
+}
+.badge-teal{background:var(--teal-pale);color:var(--teal);border:1px solid rgba(0,212,200,0.2)}
+.badge-amber{background:var(--amber-pale);color:var(--amber);border:1px solid rgba(255,170,64,0.2)}
+.badge-rose{background:var(--rose-pale);color:var(--rose);border:1px solid rgba(255,92,122,0.2)}
+.badge-green{background:var(--green-pale);color:var(--green);border:1px solid rgba(34,211,166,0.2)}
+.badge-sky{background:var(--sky-pale);color:var(--sky);border:1px solid rgba(56,190,255,0.2)}
+.badge-muted{background:rgba(255,255,255,0.06);color:var(--text-muted)}
+
+/* ─── TOAST ─── */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;
+  transform:translateY(80px);opacity:0;transition:all 0.3s ease;pointer-events:none;
+}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{background:var(--green-pale);border:1px solid rgba(34,211,166,0.35);color:var(--green)}
+#toast.error{background:var(--rose-pale);border:1px solid rgba(255,92,122,0.35);color:var(--rose)}
+#toast.info{background:var(--sky-pale);border:1px solid rgba(56,190,255,0.35);color:var(--sky)}
+
+/* ─── UPLOAD ZONE ─── */
+.upload-zone{
+  border:2px dashed rgba(0,212,200,0.25);border-radius:12px;
+  padding:32px;text-align:center;cursor:pointer;
+  transition:all 0.2s ease;background:rgba(0,212,200,0.03);
+}
+.upload-zone:hover,.upload-zone.dragover{
+  border-color:var(--teal);background:rgba(0,212,200,0.07);
+}
+.upload-icon{font-size:36px;margin-bottom:12px}
+.upload-zone h4{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px}
+.upload-zone p{font-size:12px;color:var(--text-muted)}
+input[type="file"]{display:none}
+.csv-preview{
+  margin-top:16px;background:rgba(0,0,0,0.2);border-radius:10px;
+  border:1px solid var(--border);overflow:hidden;display:none;
+}
+.csv-preview.show{display:block}
+.preview-header{
+  padding:12px 16px;background:rgba(0,212,200,0.06);
+  border-bottom:1px solid var(--border);display:flex;
+  align-items:center;justify-content:space-between;
+  font-size:13px;font-weight:600;color:var(--text-primary);
+}
+.preview-actions{
+  padding:12px 16px;border-top:1px solid var(--border);
+  display:flex;gap:8px;justify-content:flex-end;
+}
+
+/* ─── SEAT GRID ─── */
+.room-stage{
+  background:rgba(0,0,0,0.3);border-radius:10px;
+  padding:12px;border:1px solid var(--border);margin-bottom:16px;
+  text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);
+  letter-spacing:0.1em;text-transform:uppercase;
+}
+.seat-grid{
+  display:grid;gap:5px;
+}
+.seat{
+  aspect-ratio:1;border-radius:7px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;cursor:default;
+  transition:transform 0.15s ease,box-shadow 0.15s ease;
+  font-size:9px;font-weight:700;position:relative;
+  animation:seatIn 0.3s ease backwards;
+}
+@keyframes seatIn{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}
+.seat:hover{transform:scale(1.15);z-index:10}
+.seat-empty{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)}
+.seat-standard{background:rgba(56,190,255,0.2);border:1px solid rgba(56,190,255,0.4);color:var(--sky)}
+.seat-front{background:rgba(255,170,64,0.2);border:1px solid rgba(255,170,64,0.4);color:var(--amber)}
+.seat-accessible{background:rgba(34,211,166,0.2);border:1px solid rgba(34,211,166,0.4);color:var(--green)}
+.seat-num{font-size:8px;opacity:0.6;margin-bottom:2px;font-family:var(--font-mono)}
+.seat-init{font-size:10px;font-weight:800}
+.seat-tooltip{
+  position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);
+  background:var(--navy-600);border:1px solid var(--border);
+  border-radius:6px;padding:5px 9px;font-size:11px;color:var(--text-primary);
+  white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:20;
+}
+.seat:hover .seat-tooltip{opacity:1}
+.seat-legend{
+  display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;
+  padding:12px 14px;background:rgba(0,0,0,0.2);border-radius:8px;
+}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary)}
+.legend-dot{width:12px;height:12px;border-radius:4px}
+
+/* ─── SPLIT VIEW ─── */
+.split-view{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* ─── ALLOCATION STATUS ─── */
+.alloc-status{
+  padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;
+  display:flex;align-items:center;gap:8px;margin-top:12px;
+}
+.alloc-status.success{background:var(--green-pale);border:1px solid rgba(34,211,166,0.25);color:var(--green)}
+.alloc-status.warning{background:var(--amber-pale);border:1px solid rgba(255,170,64,0.25);color:var(--amber)}
+.alloc-status.error{background:var(--rose-pale);border:1px solid rgba(255,92,122,0.25);color:var(--rose)}
+
+/* ─── DISTANCE SLIDER ─── */
+.distance-control{
+  padding:16px;background:rgba(0,0,0,0.2);border-radius:10px;border:1px solid var(--border);
+}
+.slider-row{display:flex;align-items:center;gap:14px}
+.distance-label{font-size:22px;font-weight:800;font-family:var(--font-mono);min-width:60px;text-align:center}
+.slider-wrap{flex:1}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:6px;
+  border-radius:20px;background:rgba(255,255,255,0.1);outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:20px;height:20px;
+  border-radius:50%;cursor:pointer;border:3px solid var(--navy-800);
+  transition:transform 0.15s;
+}
+.slider-teal::-webkit-slider-thumb{background:var(--teal)}
+.slider-amber::-webkit-slider-thumb{background:var(--amber)}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.2)}
+
+/* ─── CSV CREATOR ─── */
+.csv-tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.csv-tab{
+  padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;
+  color:var(--text-muted);border-bottom:2px solid transparent;
+  transition:all 0.18s;background:none;border:none;font-family:var(--font-head);
+}
+.csv-tab.active{color:var(--teal);border-bottom:2px solid var(--teal)}
+.csv-tab:hover{color:var(--text-primary)}
+.csv-creator-section{display:none}
+.csv-creator-section.active{display:block}
+.row-entry{
+  display:flex;gap:8px;align-items:flex-start;padding:10px 12px;
+  background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:8px;
+  border:1px solid var(--border);
+}
+.row-entry input,
+.row-entry select{
+  flex:1;padding:7px 10px;background:rgba(0,0,0,0.3);
+  border:1px solid var(--border);border-radius:6px;
+  color:var(--text-primary);font-size:12px;font-family:var(--font-mono);
+}
+.row-entry input:focus,
+.row-entry select:focus{outline:none;border-color:var(--teal)}
+.row-entry button{flex-shrink:0}
+.csv-preview-box{
+  background:rgba(0,0,0,0.35);border-radius:10px;border:1px solid var(--border);
+  padding:16px;font-family:var(--font-mono);font-size:12px;color:var(--teal);
+  max-height:220px;overflow-y:auto;white-space:pre;
+  line-height:1.6;
+}
+.template-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;
+  background:rgba(0,0,0,0.25);border:1px solid var(--border);
+  color:var(--text-secondary);transition:all 0.15s;font-weight:500;
+}
+.template-chip:hover{border-color:var(--teal);color:var(--teal)}
+
+/* ─── ANALYTICS ─── */
+.perf-bar-row{margin-bottom:14px}
+.perf-bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;color:var(--text-secondary)}
+.perf-bar-label strong{color:var(--text-primary)}
+.perf-bar-track{height:7px;background:rgba(255,255,255,0.07);border-radius:20px;overflow:hidden}
+.perf-bar-fill{height:100%;border-radius:20px;transition:width 1.2s cubic-bezier(0.16,1,0.3,1)}
+
+/* ─── ACTIVITY FEED ─── */
+.activity-item{
+  display:flex;gap:10px;align-items:flex-start;padding:10px 0;
+  border-bottom:1px solid var(--border);font-size:13px;
+}
+.activity-item:last-child{border-bottom:none}
+.activity-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.activity-text{color:var(--text-secondary);line-height:1.4}
+.activity-time{font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px}
+
+/* ─── MODAL ─── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);
+  backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;
+}
+.modal-overlay.show{display:flex}
+.modal-box{
+  background:var(--navy-800);border:1px solid var(--card-border);
+  border-radius:16px;width:90%;max-width:520px;max-height:90vh;
+  overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.5);
+}
+.modal-header{
+  padding:20px 24px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.modal-header h3{font-size:16px;font-weight:700;color:var(--white)}
+.modal-close{
+  background:rgba(255,255,255,0.07);border:none;color:var(--text-secondary);
+  width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:all 0.15s;
+}
+.modal-close:hover{background:var(--rose-pale);color:var(--rose)}
+.modal-body{padding:24px}
+.modal-footer{
+  padding:16px 24px;border-top:1px solid var(--border);
+  display:flex;gap:10px;justify-content:flex-end;
+}
+
+/* ─── COMPARISON TABLE ─── */
+.cmp-table{width:100%;border-collapse:collapse}
+.cmp-table th{background:rgba(0,0,0,0.3);padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.07em}
+.cmp-table td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border)}
+.cmp-table tr:last-child td{border-bottom:none}
+.cmp-better{color:var(--teal);font-weight:700}
+
+/* ─── QUICK ACTIONS ─── */
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick-btn{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-radius:10px;cursor:pointer;border:1px solid var(--border);
+  background:rgba(255,255,255,0.03);color:var(--text-secondary);
+  font-family:var(--font-head);font-size:13px;font-weight:500;
+  transition:all 0.18s;text-align:left;
+}
+.quick-btn:hover{background:var(--teal-pale);border-color:rgba(0,212,200,0.3);color:var(--teal)}
+.quick-btn-icon{font-size:20px}
+
+/* ─── MISC ─── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.section-gap{margin-bottom:20px}
+.tag{
+  display:inline-block;padding:2px 8px;border-radius:4px;
+  font-size:11px;font-weight:600;font-family:var(--font-mono);
+  background:rgba(255,255,255,0.07);color:var(--text-secondary);margin:2px;
+}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.text-muted{color:var(--text-muted)}
+.text-center{text-align:center}
+.full-width{width:100%}
+.chart-box{height:240px;position:relative}
+.insights-box{
+  padding:14px 16px;background:rgba(0,212,200,0.05);
+  border-radius:10px;border:1px solid rgba(0,212,200,0.15);
+  font-size:13px;color:var(--text-secondary);line-height:1.7;
+}
+.insights-box strong{color:var(--teal)}
+.insights-box li{margin-left:18px;margin-bottom:4px}
+@media(max-width:900px){
+  .split-view,.two-col,.metrics-row{grid-template-columns:1fr}
+  .metrics-row{grid-template-columns:1fr 1fr}
+  .main{padding:18px}
+  .sidebar{width:60px}
+  .sidebar{overflow:visible}
+  .logo-title,.logo-sub,.nav-section-label,.system-badge,.nav-item span:last-child{display:none}
+  .main{margin-left:60px}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🎓</div>
+    <div class="logo-title">ExamSeat Pro</div>
+    <div class="logo-sub">Allocation System v2.0</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <button class="nav-item active" data-view="dashboard">
+      <div class="nav-dot"></div><span>Dashboard</span>
+    </button>
+    <div class="nav-section-label">Data</div>
+    <button class="nav-item" data-view="students">
+      <div class="nav-dot"></div><span>Students</span>
+    </button>
+    <button class="nav-item" data-view="exams">
+      <div class="nav-dot"></div><span>Exams</span>
+    </button>
+    <div class="nav-section-label">Allocation</div>
+    <button class="nav-item" data-view="allocation">
+      <div class="nav-dot"></div><span>Seat Allocation</span>
+    </button>
+    <button class="nav-item" data-view="comparison">
+      <div class="nav-dot"></div><span>Mode Comparison</span>
+    </button>
+    <button class="nav-item" data-view="pandemic">
+      <div class="nav-dot"></div><span>Pandemic Mode</span>
+    </button>
+    <div class="nav-section-label">Tools</div>
+    <button class="nav-item" data-view="csv-tools">
+      <div class="nav-dot"></div><span>CSV Tools</span>
+    </button>
+    <button class="nav-item" data-view="analytics">
+      <div class="nav-dot"></div><span>Analytics</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="system-badge">
+      <span class="status-dot"></span>System Active
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div id="toast"></div>
+
+  <!-- ── DASHBOARD ── -->
+  <div id="view-dashboard" class="view active">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p>Intelligent exam seat allocation overview</p>
+    </div>
+    <div class="metrics-row">
+      <div class="metric-card blue">
+        <div class="metric-label">Total Students</div>
+        <div class="metric-value" id="m-students">0</div>
+        <div class="metric-change">registered in system</div>
+      </div>
+      <div class="metric-card amber">
+        <div class="metric-label">Total Exams</div>
+        <div class="metric-value" id="m-exams">0</div>
+        <div class="metric-change">scheduled</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-label">Allocations Run</div>
+        <div class="metric-value" id="m-allocs">0</div>
+        <div class="metric-change">completed</div>
+      </div>
+      <div class="metric-card rose">
+        <div class="metric-label">Special Needs</div>
+        <div class="metric-value" id="m-special">0</div>
+        <div class="metric-change">students accommodated</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚡ Quick Actions</span></div>
+        <div class="card-body">
+          <div class="quick-grid">
+            <button class="quick-btn" onclick="go('csv-tools')"><span class="quick-btn-icon">📤</span>Upload CSV</button>
+            <button class="quick-btn" onclick="openStudentModal()"><span class="quick-btn-icon">👤</span>Add Student</button>
+            <button class="quick-btn" onclick="openExamModal()"><span class="quick-btn-icon">📝</span>Add Exam</button>
+            <button class="quick-btn" onclick="go('allocation')"><span class="quick-btn-icon">🪑</span>Run Allocation</button>
+            <button class="quick-btn" onclick="go('comparison')"><span class="quick-btn-icon">🔀</span>Compare Modes</button>
+            <button class="quick-btn" onclick="go('analytics')"><span class="quick-btn-icon">📊</span>View Analytics</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">📋 Recent Activity</span></div>
+        <div class="card-body" id="activity-feed">
+          <div class="activity-item">
+            <span class="activity-icon">ℹ️</span>
+            <div><div class="activity-text">Welcome! Upload CSV files or add data manually to get started.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STUDENTS ── -->
+  <div id="view-students" class="view">
+    <div class="page-header page-header-row">
+      <div><h1>Students</h1><p>Manage registered students</p></div>
+      <div class="header-actions">
+        <input type="text" id="student-search" class="form-control btn-sm" placeholder="🔍  Search students..." style="width:200px" oninput="renderStudents()">
+        <button class="btn btn-primary btn-sm" onclick="openStudentModal()">+ Add Student</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportStudentsCSV()">Export CSV</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border-radius:14px;border:none">
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Department</th><th>Year</th><th>Subjects</th><th>Special Needs</th><th>Source</th><th>Actions</th></tr></thead>
+            <tbody id="students-tbody"><tr class="empty-row"><td colspan="8">No students yet. Add manually or upload CSV.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EXAMS ── -->
+  <div id="view-exams" class="view">
+    <div class="page-header page-header-row">
+      <div><h1>Exams</h1><p>Manage scheduled exams</p></div>
+      <div class="header-actions">
+        <input type="text" id="exam-search" class="form-control btn-sm" placeholder="🔍  Search exams..." style="width:200px" oninput="renderExams()">
+        <button class="btn btn-primary btn-sm" onclick="openExamModal()">+ Add Exam</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportExamsCSV()">Export CSV</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border-radius:14px;border:none">
+          <table>
+            <thead><tr><th>ID</th><th>Subject</th><th>Date</th><th>Time</th><th>Duration</th><th>Requirements</th><th>Source</th><th>Actions</th></tr></thead>
+            <tbody id="exams-tbody"><tr class="empty-row"><td colspan="8">No exams yet. Add manually or upload CSV.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ALLOCATION ── -->
+  <div id="view-allocation" class="view">
+    <div class="page-header"><h1>Seat Allocation</h1><p>Assign seats to students for a selected exam</p></div>
+    <div class="two-col section-gap">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚙️ Configuration</span></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Select Exam</label>
+            <select id="alloc-exam" class="form-control">
+              <option value="">Choose an exam...</option>
+            </select>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Room Type</label>
+              <select id="alloc-room" class="form-control">
+                <option value="standard">Standard (8×6, 48 seats)</option>
+                <option value="large">Large Hall (12×8, 96 seats)</option>
+                <option value="auditorium">Auditorium (15×10, 150 seats)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Strategy</label>
+              <select id="alloc-strategy" class="form-control">
+                <option value="optimal">Optimal (AI-Enhanced)</option>
+                <option value="sequential">Sequential</option>
+                <option value="random">Randomized</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Min Seat Distance</label>
+            <div class="distance-control">
+              <div class="slider-row">
+                <div class="distance-label" id="alloc-dist-val" style="color:var(--teal)">2.0m</div>
+                <div class="slider-wrap">
+                  <input type="range" id="alloc-dist" class="slider-teal" min="1" max="4" step="0.5" value="2">
+                </div>
+              </div>
+            </div>
+          </div>
+          <label class="checkbox-row" style="margin-bottom:16px">
+            <input type="checkbox" id="alloc-special" checked>
+            Prioritize special needs students
+          </label>
+          <button class="btn btn-primary full-width" onclick="runAllocation()">🚀 Run Allocation</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">📊 Results Summary</span></div>
+        <div class="card-body" id="alloc-summary">
+          <div class="text-center text-muted" style="padding:32px 0">
+            <div style="font-size:40px;margin-bottom:12px">🪑</div>
+            <div>Select an exam and run allocation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="alloc-grid-card" style="display:none">
+      <div class="card-header">
+        <span class="card-title">🏫 Seating Layout</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="exportAllocationCSV()">Export CSV</button>
+          <button class="btn btn-outline btn-sm" onclick="window.print()">Print</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="room-stage">📋 Front of Room — Examiner's Desk</div>
+        <div id="alloc-grid" class="seat-grid"></div>
+        <div class="seat-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(56,190,255,0.3);border:1px solid rgba(56,190,255,0.5)"></div>Standard</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(255,170,64,0.3);border:1px solid rgba(255,170,64,0.5)"></div>Front Row</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(34,211,166,0.3);border:1px solid rgba(34,211,166,0.5)"></div>Accessible</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)"></div>Empty</div>
+        </div>
+        <div id="alloc-status" class="alloc-status" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COMPARISON ── -->
+  <div id="view-comparison" class="view">
+    <div class="page-header"><h1>Mode Comparison</h1><p>Side-by-side: Normal (2m) vs Pandemic spacing</p></div>
+    <div class="card section-gap">
+      <div class="card-body">
+        <div class="form-grid-3">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Exam</label>
+            <select id="cmp-exam" class="form-control" onchange="runBoth()">
+              <option value="">Select exam...</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Room Type</label>
+            <select id="cmp-room" class="form-control" onchange="runBoth()">
+              <option value="standard">Standard (8×6)</option>
+              <option value="large">Large Hall (12×8)</option>
+              <option value="auditorium">Auditorium (15×10)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Pandemic Distance</label>
+            <div class="distance-control">
+              <div class="slider-row">
+                <div class="distance-label" id="cmp-dist-val" style="color:var(--amber);font-size:16px">4.0m</div>
+                <input type="range" id="cmp-dist" class="slider-amber" min="1" max="4" step="0.5" value="4" oninput="cmpDistChange(this.value);runBoth()">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="split-view section-gap">
+      <!-- Normal Side -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" style="color:var(--sky)">⚡ Normal Mode — 2.0m spacing</span>
+          <button class="btn btn-outline btn-sm" id="cmp-export-normal" onclick="exportCmpCSV('normal')" disabled>Export</button>
+        </div>
+        <div class="card-body">
+          <div class="three-col" style="gap:10px;margin-bottom:14px">
+            <div style="text-align:center;padding:10px;background:var(--sky-pale);border-radius:8px;border:1px solid rgba(56,190,255,0.15)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">SEATED</div>
+              <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--sky)" id="n-seated">—</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">AVG DIST</div>
+              <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" id="n-dist">—</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">EFFICIENCY</div>
+              <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" id="n-eff">—</div>
+            </div>
+          </div>
+          <div class="room-stage" style="font-size:10px">Front of Room</div>
+          <div id="cmp-normal-grid" class="seat-grid"></div>
+          <div id="cmp-normal-status" class="alloc-status" style="display:none;margin-top:10px"></div>
+        </div>
+      </div>
+      <!-- Pandemic Side -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" style="color:var(--amber)">🦠 Pandemic Mode — <span id="cmp-dist-label">4.0m</span> spacing</span>
+          <button class="btn btn-amber btn-sm" id="cmp-export-pandemic" onclick="exportCmpCSV('pandemic')" disabled>Export</button>
+        </div>
+        <div class="card-body">
+          <div class="three-col" style="gap:10px;margin-bottom:14px">
+            <div style="text-align:center;padding:10px;background:var(--amber-pale);border-radius:8px;border:1px solid rgba(255,170,64,0.15)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">SEATED</div>
+              <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--amber)" id="p-seated">—</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">AVG DIST</div>
+              <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" id="p-dist">—</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">EFFICIENCY</div>
+              <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" id="p-eff">—</div>
+            </div>
+          </div>
+          <div class="room-stage" style="font-size:10px">Front of Room</div>
+          <div id="cmp-pandemic-grid" class="seat-grid"></div>
+          <div id="cmp-pandemic-status" class="alloc-status" style="display:none;margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="cmp-insights-card" style="display:none">
+      <div class="card-header"><span class="card-title">💡 Comparison Insights</span>
+        <button class="btn btn-secondary btn-sm" onclick="exportCmpReport()">Export Report</button>
+      </div>
+      <div class="card-body" id="cmp-insights"></div>
+    </div>
+  </div>
+
+  <!-- ── PANDEMIC ── -->
+  <div id="view-pandemic" class="view">
+    <div class="page-header"><h1>Pandemic Mode</h1><p>Enhanced social distancing allocation with configurable spacing</p></div>
+    <div class="card section-gap">
+      <div class="card-header"><span class="card-title" style="color:var(--amber)">🦠 Pandemic Distance Control</span></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Select Exam</label>
+            <select id="pan-exam" class="form-control"></select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Room Configuration</label>
+            <select id="pan-room" class="form-control">
+              <option value="standard">Standard (8×6)</option>
+              <option value="large">Large Hall (12×8)</option>
+              <option value="auditorium">Auditorium (15×10)</option>
+            </select>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="form-group">
+          <label class="form-label">Social Distancing Distance</label>
+          <div class="distance-control" style="background:rgba(255,170,64,0.06);border-color:rgba(255,170,64,0.2)">
+            <div class="slider-row">
+              <div class="distance-label" id="pan-dist-val" style="color:var(--amber);font-size:28px">4.0m</div>
+              <div class="slider-wrap">
+                <input type="range" id="pan-dist" class="slider-amber" min="1" max="4" step="0.5" value="4" oninput="panDistChange(this.value)">
+              </div>
+            </div>
+            <div id="pan-guideline" style="margin-top:12px;padding:10px 14px;background:rgba(255,170,64,0.08);border-left:3px solid var(--amber);border-radius:6px;font-size:12px;color:var(--text-secondary)">
+              4m distance: Maximum social distancing for high-risk environments
+            </div>
+          </div>
+        </div>
+        <label class="checkbox-row" style="margin-bottom:16px">
+          <input type="checkbox" id="pan-special" checked>
+          Prioritize special needs students
+        </label>
+        <button class="btn btn-amber full-width" onclick="runPandemic()">🦠 Run Pandemic Allocation</button>
+      </div>
+    </div>
+
+    <div class="metrics-row" style="grid-template-columns:repeat(4,1fr)">
+      <div class="metric-card amber">
+        <div class="metric-label">Students Seated</div>
+        <div class="metric-value" id="pan-seated">—</div>
+        <div class="metric-change">of <span id="pan-total">0</span> total</div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-label">Avg Distance</div>
+        <div class="metric-value" id="pan-dist-m">—</div>
+        <div class="metric-change">between students</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-label">Room Efficiency</div>
+        <div class="metric-value" id="pan-eff">—</div>
+        <div class="metric-change">capacity used</div>
+      </div>
+      <div class="metric-card rose">
+        <div class="metric-label">Special Needs</div>
+        <div class="metric-value" id="pan-special-c">—</div>
+        <div class="metric-change">accommodated</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🪑 Seating Arrangement</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-amber btn-sm" id="pan-export-btn" onclick="exportPandemicCSV()" disabled>Export CSV</button>
+            <button class="btn btn-secondary btn-sm" id="pan-print-btn" onclick="window.print()" disabled>Print</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="room-stage">📋 Front of Room — Examiner's Desk</div>
+          <div id="pan-grid" class="seat-grid" style="min-height:200px"></div>
+          <div class="seat-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(56,190,255,0.3);border:1px solid rgba(56,190,255,0.5)"></div>Standard</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(255,170,64,0.3);border:1px solid rgba(255,170,64,0.5)"></div>Front Row</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(34,211,166,0.3);border:1px solid rgba(34,211,166,0.5)"></div>Accessible</div>
+          </div>
+          <div id="pan-status" class="alloc-status" style="display:none"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card section-gap">
+          <div class="card-header"><span class="card-title">📋 Pandemic Guidelines</span></div>
+          <div class="card-body">
+            <div id="pan-capacity-box" style="margin-bottom:14px;display:none"></div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
+              <strong style="color:var(--text-primary)">Why Social Distancing Matters:</strong>
+              <ul style="margin:8px 0 0 18px">
+                <li>Reduces airborne transmission risk</li>
+                <li>Provides safety buffer zones</li>
+                <li>Enables better ventilation flow</li>
+                <li>Increases exam safety for all</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">📈 Distance Impact</span></div>
+          <div class="card-body" id="pan-analysis">
+            <div class="text-muted text-center" style="padding:20px 0;font-size:13px">Run allocation to see distance impact</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CSV TOOLS ── -->
+  <div id="view-csv-tools" class="view">
+    <div class="page-header"><h1>CSV Tools</h1><p>Upload existing CSVs or create new ones from scratch</p></div>
+
+    <div class="csv-tab-bar">
+      <button class="csv-tab active" onclick="switchCsvTab('upload', this)">📤 Upload CSV</button>
+      <button class="csv-tab" onclick="switchCsvTab('create', this)">✏️ Create CSV</button>
+      <button class="csv-tab" onclick="switchCsvTab('templates', this)">📋 Templates</button>
+    </div>
+
+    <!-- UPLOAD TAB -->
+    <div id="csv-tab-upload" class="csv-creator-section active">
+      <div class="two-col">
+        <!-- Students Upload -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">👥 Upload Students CSV</span></div>
+          <div class="card-body">
+            <div class="upload-zone" id="students-drop" onclick="document.getElementById('students-file').click()" ondragover="dropOver(event,'students-drop')" ondragleave="dropLeave('students-drop')" ondrop="dropFile(event,'students')">
+              <div class="upload-icon">📤</div>
+              <h4>Drag & drop or click to browse</h4>
+              <p>Accepts .csv files</p>
+              <input type="file" id="students-file" accept=".csv" onchange="handleUpload(event,'students')">
+            </div>
+            <div style="margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:12px;color:var(--text-muted)">
+              <strong style="color:var(--text-secondary)">Expected columns:</strong> ID, Name, Department, Year, Subjects, SpecialNeeds
+            </div>
+            <div id="students-preview" class="csv-preview"></div>
+          </div>
+        </div>
+        <!-- Exams Upload -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">📝 Upload Exams CSV</span></div>
+          <div class="card-body">
+            <div class="upload-zone" id="exams-drop" onclick="document.getElementById('exams-file').click()" ondragover="dropOver(event,'exams-drop')" ondragleave="dropLeave('exams-drop')" ondrop="dropFile(event,'exams')">
+              <div class="upload-icon">📤</div>
+              <h4>Drag & drop or click to browse</h4>
+              <p>Accepts .csv files</p>
+              <input type="file" id="exams-file" accept=".csv" onchange="handleUpload(event,'exams')">
+            </div>
+            <div style="margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:12px;color:var(--text-muted)">
+              <strong style="color:var(--text-secondary)">Expected columns:</strong> ID, Subject, Date, TimeSlot, Duration, SpecialRequirements
+            </div>
+            <div id="exams-preview" class="csv-preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATE TAB -->
+    <div id="csv-tab-create" class="csv-creator-section">
+      <div class="two-col">
+        <!-- Build Students CSV -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">👥 Build Students CSV</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" onclick="addStudentRow()">+ Row</button>
+              <button class="btn btn-primary btn-sm" onclick="downloadCreatedCSV('students')">Download CSV</button>
+              <button class="btn btn-outline btn-sm" onclick="importCreatedStudents()">Import to System</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="student-rows"></div>
+            <button class="btn btn-secondary btn-sm" onclick="addStudentRow()" style="margin-top:8px">+ Add Row</button>
+            <div class="divider"></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">CSV Preview</div>
+            <div id="student-csv-preview" class="csv-preview-box">ID,Name,Department,Year,Subjects,SpecialNeeds</div>
+          </div>
+        </div>
+        <!-- Build Exams CSV -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📝 Build Exams CSV</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" onclick="addExamRow()">+ Row</button>
+              <button class="btn btn-primary btn-sm" onclick="downloadCreatedCSV('exams')">Download CSV</button>
+              <button class="btn btn-outline btn-sm" onclick="importCreatedExams()">Import to System</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="exam-rows"></div>
+            <button class="btn btn-secondary btn-sm" onclick="addExamRow()" style="margin-top:8px">+ Add Row</button>
+            <div class="divider"></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">CSV Preview</div>
+            <div id="exam-csv-preview" class="csv-preview-box">ID,Subject,Date,TimeSlot,Duration,SpecialRequirements</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEMPLATES TAB -->
+    <div id="csv-tab-templates" class="csv-creator-section">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><span class="card-title">👥 Students Template</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Download a ready-to-fill students CSV template with sample data and instructions.</p>
+            <div style="margin-bottom:16px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Required Columns</div>
+              <div>
+                <span class="tag">ID</span><span class="tag">Name</span><span class="tag">Department</span>
+                <span class="tag">Year</span><span class="tag">Subjects</span><span class="tag">SpecialNeeds</span>
+              </div>
+            </div>
+            <div style="margin-bottom:16px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Notes</div>
+              <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:2">
+                <li>Subjects: comma-separated (e.g., "Math, Physics")</li>
+                <li>SpecialNeeds: true or false</li>
+                <li>Year: numeric (1–5)</li>
+              </ul>
+            </div>
+            <button class="btn btn-primary full-width" onclick="downloadTemplate('students')">⬇ Download Students Template</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">📝 Exams Template</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Download a ready-to-fill exams CSV template with sample data and column instructions.</p>
+            <div style="margin-bottom:16px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Required Columns</div>
+              <div>
+                <span class="tag">ID</span><span class="tag">Subject</span><span class="tag">Date</span>
+                <span class="tag">TimeSlot</span><span class="tag">Duration</span><span class="tag">SpecialRequirements</span>
+              </div>
+            </div>
+            <div style="margin-bottom:16px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Notes</div>
+              <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:2">
+                <li>TimeSlot: morning / afternoon / evening</li>
+                <li>Duration: in minutes</li>
+                <li>SpecialRequirements: comma-separated (optional)</li>
+              </ul>
+            </div>
+            <button class="btn btn-primary full-width" onclick="downloadTemplate('exams')">⬇ Download Exams Template</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ANALYTICS ── -->
+  <div id="view-analytics" class="view">
+    <div class="page-header"><h1>Analytics & Insights</h1><p>Performance metrics and allocation analysis</p></div>
+    <div class="two-col section-gap">
+      <div class="card">
+        <div class="card-header"><span class="card-title">🎯 Performance Metrics</span></div>
+        <div class="card-body">
+          <div class="perf-bar-row">
+            <div class="perf-bar-label"><span>Conflict Resolution Rate</span><strong>95%</strong></div>
+            <div class="perf-bar-track"><div class="perf-bar-fill" style="width:95%;background:var(--green)"></div></div>
+          </div>
+          <div class="perf-bar-row">
+            <div class="perf-bar-label"><span>Space Utilization</span><strong>87%</strong></div>
+            <div class="perf-bar-track"><div class="perf-bar-fill" style="width:87%;background:var(--teal)"></div></div>
+          </div>
+          <div class="perf-bar-row">
+            <div class="perf-bar-label"><span>Processing Efficiency</span><strong>92%</strong></div>
+            <div class="perf-bar-track"><div class="perf-bar-fill" style="width:92%;background:var(--sky)"></div></div>
+          </div>
+          <div class="perf-bar-row">
+            <div class="perf-bar-label"><span>Special Needs Accommodation</span><strong>100%</strong></div>
+            <div class="perf-bar-track"><div class="perf-bar-fill" style="width:100%;background:var(--amber)"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">📊 Traditional vs AI-Enhanced</span></div>
+        <div class="card-body">
+          <div class="chart-box"><canvas id="analytics-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">📋 Department Distribution</span></div>
+      <div class="card-body">
+        <div class="chart-box"><canvas id="dept-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Student Modal -->
+<div class="modal-overlay" id="student-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="student-modal-title">Add Student</h3>
+      <button class="modal-close" onclick="closeStudentModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Student ID</label>
+          <input type="text" id="s-id" class="form-control" placeholder="STU_001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="s-name" class="form-control" placeholder="Alice Johnson">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Department *</label>
+          <input type="text" id="s-dept" class="form-control" placeholder="Computer Science">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Year *</label>
+          <input type="number" id="s-year" class="form-control" min="1" max="5" placeholder="2">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subjects (comma-separated) *</label>
+        <input type="text" id="s-subjects" class="form-control" placeholder="Data Structures, Algorithms">
+      </div>
+      <label class="checkbox-row"><input type="checkbox" id="s-special"> Special Needs Accommodation</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeStudentModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStudent()">Save Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- Exam Modal -->
+<div class="modal-overlay" id="exam-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="exam-modal-title">Add Exam</h3>
+      <button class="modal-close" onclick="closeExamModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Exam ID</label>
+          <input type="text" id="e-id" class="form-control" placeholder="EXAM_001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Subject *</label>
+          <input type="text" id="e-subject" class="form-control" placeholder="Data Structures">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" id="e-date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time Slot</label>
+          <select id="e-slot" class="form-control">
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Duration (minutes)</label>
+          <input type="number" id="e-duration" class="form-control" value="120" min="30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Special Requirements</label>
+          <input type="text" id="e-reqs" class="form-control" placeholder="isolated, calculator">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeExamModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExam()">Save Exam</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const S = {
+  students: [],
+  exams: [],
+  allocations: 0,
+  activityLog: [],
+  editingStudent: null,
+  editingExam: null,
+  normalResult: null,
+  pandemicResult: null,
+  lastAlloc: null,
+  panDist: 4,
+  studentRows: [],
+  examRows: []
+};
+
+const ROOMS = {
+  standard:  { width:8,  height:6,  capacity:48  },
+  large:     { width:12, height:8,  capacity:96  },
+  auditorium:{ width:15, height:10, capacity:150 }
+};
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initNav();
+  loadSample();
+  initSliders();
+  initCharts();
+  updateDashboard();
+  addStudentRow(); addStudentRow();
+  addExamRow(); addExamRow();
+});
+
+function initNav() {
+  document.querySelectorAll('.nav-item').forEach(b => {
+    b.addEventListener('click', () => go(b.dataset.view));
+  });
+}
+
+function go(view) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
+  if (view === 'students') renderStudents();
+  if (view === 'exams') renderExams();
+  if (view === 'allocation') populateAllocExam();
+  if (view === 'comparison') populateCmpExam();
+  if (view === 'pandemic') populatePanExam();
+}
+
+function initSliders() {
+  // Allocation distance slider
+  const ad = document.getElementById('alloc-dist');
+  if (ad) ad.addEventListener('input', e => {
+    document.getElementById('alloc-dist-val').textContent = parseFloat(e.target.value).toFixed(1) + 'm';
+  });
+  // Pandemic main slider
+  const pd = document.getElementById('pan-dist');
+  if (pd) pd.addEventListener('input', e => panDistChange(e.target.value));
+}
+
+function initCharts() {
+  const ctx1 = document.getElementById('analytics-chart');
+  if (ctx1) {
+    new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: ['Conflict Res.', 'Space Util.', 'Processing', 'Accuracy', 'Special Needs'],
+        datasets: [
+          { label: 'Traditional', data: [65,72,45,78,80], backgroundColor: 'rgba(56,190,255,0.6)', borderRadius:5 },
+          { label: 'AI-Enhanced', data: [95,87,92,96,100], backgroundColor: 'rgba(0,212,200,0.7)', borderRadius:5 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{ position:'bottom', labels:{ color:'#8A9ABB', font:{family:'Sora',size:12}}}},
+        scales: {
+          x:{ ticks:{color:'#8A9ABB'}, grid:{color:'rgba(255,255,255,0.04)'} },
+          y:{ beginAtZero:true, max:100, ticks:{color:'#8A9ABB', callback:v=>v+'%'}, grid:{color:'rgba(255,255,255,0.06)'} }
+        }
+      }
+    });
+  }
+  const ctx2 = document.getElementById('dept-chart');
+  if (ctx2) {
+    new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: ['Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Engineering'],
+        datasets: [{ data: [35,22,18,15,10], backgroundColor: ['#00D4C8','#38BEFF','#FFAA40','#22D3A6','#FF5C7A'], borderWidth:0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{ position:'right', labels:{ color:'#8A9ABB', font:{family:'Sora',size:12}, padding:16}}}
+      }
+    });
+  }
+}
+
+function loadSample() {
+  S.students = [
+    {id:'STU_001',name:'Alice Johnson',department:'Computer Science',year:2,subjects:['Data Structures','Algorithms'],specialNeeds:false,source:'Sample'},
+    {id:'STU_002',name:'Bob Smith',department:'Computer Science',year:2,subjects:['Data Structures','Database Systems'],specialNeeds:true,source:'Sample'},
+    {id:'STU_003',name:'Carol White',department:'Mathematics',year:3,subjects:['Calculus','Linear Algebra'],specialNeeds:false,source:'Sample'},
+    {id:'STU_004',name:'David Lee',department:'Physics',year:2,subjects:['Data Structures','Physics Lab'],specialNeeds:false,source:'Sample'},
+    {id:'STU_005',name:'Emma Davis',department:'Computer Science',year:1,subjects:['Algorithms','Discrete Math'],specialNeeds:false,source:'Sample'},
+  ];
+  S.exams = [
+    {id:'EXAM_001',subject:'Data Structures',date:'2025-12-15',timeSlot:'morning',duration:180,requirements:[],source:'Sample'},
+    {id:'EXAM_002',subject:'Algorithms',date:'2025-12-16',timeSlot:'afternoon',duration:120,requirements:['isolated'],source:'Sample'},
+  ];
+  logActivity('Loaded sample data (5 students, 2 exams)', 'ℹ️');
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+function updateDashboard() {
+  document.getElementById('m-students').textContent = S.students.length;
+  document.getElementById('m-exams').textContent = S.exams.length;
+  document.getElementById('m-allocs').textContent = S.allocations;
+  document.getElementById('m-special').textContent = S.students.filter(s=>s.specialNeeds).length;
+  const feed = document.getElementById('activity-feed');
+  if (!feed) return;
+  const logs = [...S.activityLog].reverse().slice(0,6);
+  if (logs.length === 0) {
+    feed.innerHTML = `<div class="activity-item"><span class="activity-icon">ℹ️</span><div class="activity-text">Welcome! Upload CSV files or add data manually to get started.</div></div>`;
+  } else {
+    feed.innerHTML = logs.map(l => `
+      <div class="activity-item">
+        <span class="activity-icon">${l.icon}</span>
+        <div><div class="activity-text">${l.msg}</div><div class="activity-time">${l.time}</div></div>
+      </div>`).join('');
+  }
+}
+
+function logActivity(msg, icon='✅') {
+  S.activityLog.push({ msg, icon, time: new Date().toLocaleTimeString() });
+  updateDashboard();
+}
+
+// ═══════════════════════════════════════════════════════
+// STUDENTS
+// ═══════════════════════════════════════════════════════
+function renderStudents() {
+  const q = (document.getElementById('student-search')?.value||'').toLowerCase();
+  const tbody = document.getElementById('students-tbody');
+  const filtered = S.students.filter(s =>
+    s.name.toLowerCase().includes(q) || s.department.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
+  );
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No students found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(s => `
+    <tr>
+      <td class="td-bold">${s.id}</td>
+      <td style="color:var(--text-primary);font-weight:500">${s.name}</td>
+      <td>${s.department}</td>
+      <td><span class="badge badge-sky">Year ${s.year}</span></td>
+      <td>${s.subjects.map(sub=>`<span class="tag">${sub}</span>`).join('')}</td>
+      <td>${s.specialNeeds ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-muted">No</span>'}</td>
+      <td><span class="badge ${s.source==='CSV'?'badge-amber':'badge-muted'}">${s.source||'Manual'}</span></td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editStudent('${s.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">Del</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openStudentModal(editId=null) {
+  S.editingStudent = editId;
+  document.getElementById('student-modal-title').textContent = editId ? 'Edit Student' : 'Add Student';
+  if (editId) {
+    const s = S.students.find(x=>x.id===editId);
+    if (s) {
+      document.getElementById('s-id').value = s.id;
+      document.getElementById('s-name').value = s.name;
+      document.getElementById('s-dept').value = s.department;
+      document.getElementById('s-year').value = s.year;
+      document.getElementById('s-subjects').value = s.subjects.join(', ');
+      document.getElementById('s-special').checked = s.specialNeeds;
+    }
+  } else {
+    document.getElementById('s-id').value = 'STU_' + String(Date.now()).slice(-4);
+    ['s-name','s-dept','s-year','s-subjects'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('s-special').checked = false;
+  }
+  document.getElementById('student-modal').classList.add('show');
+}
+
+function editStudent(id) { openStudentModal(id); }
+
+function closeStudentModal() {
+  document.getElementById('student-modal').classList.remove('show');
+  S.editingStudent = null;
+}
+
+function saveStudent() {
+  const id = document.getElementById('s-id').value.trim();
+  const name = document.getElementById('s-name').value.trim();
+  const department = document.getElementById('s-dept').value.trim();
+  const year = parseInt(document.getElementById('s-year').value);
+  const subjects = document.getElementById('s-subjects').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const specialNeeds = document.getElementById('s-special').checked;
+  if (!name || !department || !year || subjects.length===0) { toast('Fill all required fields','error'); return; }
+  if (S.editingStudent) {
+    const i = S.students.findIndex(s=>s.id===S.editingStudent);
+    if (i!==-1) { S.students[i] = {...S.students[i], name,department,year,subjects,specialNeeds}; }
+    toast('Student updated','success'); logActivity(`Updated: ${name}`, '✏️');
+  } else {
+    S.students.push({id:id||'STU_'+Date.now(), name, department, year, subjects, specialNeeds, source:'Manual'});
+    toast('Student added','success'); logActivity(`Added student: ${name}`, '👤');
+  }
+  closeStudentModal(); renderStudents(); updateDashboard();
+}
+
+function deleteStudent(id) {
+  if (!confirm('Delete this student?')) return;
+  const s = S.students.find(x=>x.id===id);
+  S.students = S.students.filter(x=>x.id!==id);
+  toast('Student deleted','info'); logActivity(`Deleted: ${s?.name}`, '🗑️');
+  renderStudents(); updateDashboard();
+}
+
+function exportStudentsCSV() {
+  let csv = 'ID,Name,Department,Year,Subjects,SpecialNeeds\n';
+  S.students.forEach(s => { csv += `${s.id},"${s.name}","${s.department}",${s.year},"${s.subjects.join(', ')}",${s.specialNeeds}\n`; });
+  dlCSV(csv, 'students_export.csv');
+  toast('Students CSV exported','success');
+}
+
+// ═══════════════════════════════════════════════════════
+// EXAMS
+// ═══════════════════════════════════════════════════════
+function renderExams() {
+  const q = (document.getElementById('exam-search')?.value||'').toLowerCase();
+  const tbody = document.getElementById('exams-tbody');
+  const filtered = S.exams.filter(e =>
+    e.subject.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)
+  );
+  if (filtered.length === 0) { tbody.innerHTML=`<tr class="empty-row"><td colspan="8">No exams found.</td></tr>`; return; }
+  tbody.innerHTML = filtered.map(e => `
+    <tr>
+      <td class="td-bold">${e.id}</td>
+      <td style="color:var(--text-primary);font-weight:500">${e.subject}</td>
+      <td>${e.date}</td>
+      <td><span class="badge badge-sky">${e.timeSlot}</span></td>
+      <td><span class="badge badge-muted">${e.duration}m</span></td>
+      <td>${(e.requirements||[]).map(r=>`<span class="tag">${r}</span>`).join('') || '—'}</td>
+      <td><span class="badge ${e.source==='CSV'?'badge-amber':'badge-muted'}">${e.source||'Manual'}</span></td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editExam('${e.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteExam('${e.id}')">Del</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openExamModal(editId=null) {
+  S.editingExam = editId;
+  document.getElementById('exam-modal-title').textContent = editId ? 'Edit Exam' : 'Add Exam';
+  if (editId) {
+    const e = S.exams.find(x=>x.id===editId);
+    if (e) {
+      document.getElementById('e-id').value = e.id;
+      document.getElementById('e-subject').value = e.subject;
+      document.getElementById('e-date').value = e.date;
+      document.getElementById('e-slot').value = e.timeSlot;
+      document.getElementById('e-duration').value = e.duration;
+      document.getElementById('e-reqs').value = (e.requirements||[]).join(', ');
+    }
+  } else {
+    document.getElementById('e-id').value = 'EXAM_' + String(Date.now()).slice(-4);
+    ['e-subject','e-date','e-reqs'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('e-duration').value = '120';
+    document.getElementById('e-slot').value = 'morning';
+  }
+  document.getElementById('exam-modal').classList.add('show');
+}
+
+function editExam(id) { openExamModal(id); }
+
+function closeExamModal() {
+  document.getElementById('exam-modal').classList.remove('show');
+  S.editingExam = null;
+}
+
+function saveExam() {
+  const id = document.getElementById('e-id').value.trim();
+  const subject = document.getElementById('e-subject').value.trim();
+  const date = document.getElementById('e-date').value;
+  const timeSlot = document.getElementById('e-slot').value;
+  const duration = parseInt(document.getElementById('e-duration').value);
+  const requirements = document.getElementById('e-reqs').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if (!subject || !date) { toast('Fill all required fields','error'); return; }
+  if (S.editingExam) {
+    const i = S.exams.findIndex(e=>e.id===S.editingExam);
+    if (i!==-1) S.exams[i] = {...S.exams[i], subject,date,timeSlot,duration,requirements};
+    toast('Exam updated','success'); logActivity(`Updated exam: ${subject}`,'✏️');
+  } else {
+    S.exams.push({id:id||'EXAM_'+Date.now(), subject,date,timeSlot,duration,requirements,source:'Manual'});
+    toast('Exam added','success'); logActivity(`Added exam: ${subject}`,'📝');
+  }
+  closeExamModal(); renderExams(); updateDashboard();
+}
+
+function deleteExam(id) {
+  if (!confirm('Delete this exam?')) return;
+  const e = S.exams.find(x=>x.id===id);
+  S.exams = S.exams.filter(x=>x.id!==id);
+  toast('Exam deleted','info'); logActivity(`Deleted exam: ${e?.subject}`,'🗑️');
+  renderExams(); updateDashboard();
+}
+
+function exportExamsCSV() {
+  let csv = 'ID,Subject,Date,TimeSlot,Duration,SpecialRequirements\n';
+  S.exams.forEach(e => { csv += `${e.id},"${e.subject}",${e.date},${e.timeSlot},${e.duration},"${(e.requirements||[]).join(', ')}"\n`; });
+  dlCSV(csv, 'exams_export.csv');
+  toast('Exams CSV exported','success');
+}
+
+// ═══════════════════════════════════════════════════════
+// ALLOCATION CORE
+// ═══════════════════════════════════════════════════════
+function distanceAlloc(students, config, minDist, prioritizeSN=true) {
+  const {width,height} = config;
+  const grid = Array(height).fill(null).map(()=>Array(width).fill(null));
+  const allocated=[], unallocated=[];
+  const sorted = [...students].sort((a,b)=>{
+    if (prioritizeSN && a.specialNeeds!==b.specialNeeds) return b.specialNeeds?1:-1;
+    return a.department.localeCompare(b.department);
+  });
+  for (const student of sorted) {
+    let placed = false;
+    for (let r=0; r<height && !placed; r++) {
+      for (let c=0; c<width && !placed; c++) {
+        if (grid[r][c]===null) {
+          let ok = true;
+          for (let rr=0; rr<height && ok; rr++) {
+            for (let cc=0; cc<width && ok; cc++) {
+              if (grid[rr][cc]!==null) {
+                const d = Math.sqrt(Math.pow(r-rr,2)+Math.pow(c-cc,2));
+                if (d < minDist) ok = false;
+              }
+            }
+          }
+          if (ok) { grid[r][c]=student; allocated.push({student,row:r,col:c,pos:r*width+c+1}); placed=true; }
+        }
+      }
+    }
+    if (!placed) unallocated.push(student);
+  }
+  const avgDist = calcAvgDist(allocated);
+  return { grid, allocated, unallocated, width, height,
+    metrics:{ seated:allocated.length, total:students.length, avgDist:avgDist.toFixed(2), efficiency:(allocated.length/(width*height)*100).toFixed(1) }
+  };
+}
+
+function calcAvgDist(a) {
+  if (a.length<2) return 0;
+  let sum=0,cnt=0;
+  for (let i=0;i<a.length;i++) for (let j=i+1;j<a.length;j++) {
+    sum += Math.sqrt(Math.pow(a[i].row-a[j].row,2)+Math.pow(a[i].col-a[j].col,2));
+    cnt++;
+  }
+  return cnt>0?sum/cnt:0;
+}
+
+function renderSeatGrid(containerId, result) {
+  const el = document.getElementById(containerId);
+  const {width,height,grid} = result;
+  el.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
+  el.style.gap = '4px';
+  let html = '';
+  for (let r=0;r<height;r++) {
+    for (let c=0;c<width;c++) {
+      const student = grid[r][c];
+      const pos = r*width+c+1;
+      if (student) {
+        const initials = student.name.split(' ').map(n=>n[0]).join('');
+        const cls = student.specialNeeds?'seat-accessible':r===0?'seat-front':'seat-standard';
+        const delay = (r*width+c)*0.02;
+        html += `<div class="seat ${cls}" style="animation-delay:${delay}s" title="${student.name}">
+          <div class="seat-num">${pos}</div>
+          <div class="seat-init">${initials}</div>
+          <div class="seat-tooltip">${student.name}${student.specialNeeds?' ♿':''}</div>
+        </div>`;
+      } else {
+        html += `<div class="seat seat-empty"><div class="seat-num">${pos}</div></div>`;
+      }
+    }
+  }
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════
+// ALLOCATION VIEW
+// ═══════════════════════════════════════════════════════
+function populateAllocExam() {
+  const sel = document.getElementById('alloc-exam');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Choose an exam...</option>';
+  S.exams.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.subject} — ${e.date} (${e.timeSlot})</option>`; });
+}
+
+function runAllocation() {
+  const examId = document.getElementById('alloc-exam').value;
+  const roomType = document.getElementById('alloc-room').value;
+  const strategy = document.getElementById('alloc-strategy').value;
+  const minDist = parseFloat(document.getElementById('alloc-dist').value);
+  const prioritizeSN = document.getElementById('alloc-special').checked;
+  if (!examId) { toast('Select an exam first','error'); return; }
+  const exam = S.exams.find(e=>e.id===examId);
+  const eligible = S.students.filter(s=>s.subjects.some(sub=>sub.toLowerCase()===exam.subject.toLowerCase()));
+  if (eligible.length===0) { toast('No students registered for this exam subject','error'); return; }
+  const config = ROOMS[roomType];
+  const result = distanceAlloc(eligible, config, minDist, prioritizeSN);
+  S.lastAlloc = {result, exam};
+  S.allocations++;
+  // Summary
+  document.getElementById('alloc-summary').innerHTML = `
+    <div class="form-grid-3" style="gap:10px;margin-bottom:16px">
+      <div style="text-align:center;padding:14px;background:var(--teal-pale);border-radius:10px;border:1px solid rgba(0,212,200,0.15)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">SEATED</div>
+        <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:var(--teal)">${result.metrics.seated}</div>
+        <div style="font-size:11px;color:var(--text-muted)">of ${eligible.length}</div>
+      </div>
+      <div style="text-align:center;padding:14px;background:var(--sky-pale);border-radius:10px;border:1px solid rgba(56,190,255,0.15)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">AVG DIST</div>
+        <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:var(--sky)">${result.metrics.avgDist}</div>
+        <div style="font-size:11px;color:var(--text-muted)">units</div>
+      </div>
+      <div style="text-align:center;padding:14px;background:var(--green-pale);border-radius:10px;border:1px solid rgba(34,211,166,0.15)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">EFFICIENCY</div>
+        <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:var(--green)">${result.metrics.efficiency}%</div>
+        <div style="font-size:11px;color:var(--text-muted)">utilization</div>
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--text-secondary)">
+      <strong style="color:var(--text-primary)">Exam:</strong> ${exam.subject}<br>
+      <strong style="color:var(--text-primary)">Room:</strong> ${roomType} (${config.width}×${config.height})<br>
+      <strong style="color:var(--text-primary)">Strategy:</strong> ${strategy}<br>
+      <strong style="color:var(--text-primary)">Min Distance:</strong> ${minDist}m<br>
+      <strong style="color:var(--text-primary)">Special Needs:</strong> ${result.allocated.filter(a=>a.student.specialNeeds).length} accommodated
+    </div>
+    ${result.unallocated.length>0 ? `<div style="margin-top:12px;padding:10px;background:var(--amber-pale);border-radius:8px;border:1px solid rgba(255,170,64,0.25);font-size:12px;color:var(--amber)">⚠️ ${result.unallocated.length} student(s) could not be seated. Consider a larger room.</div>` : ''}
+  `;
+  document.getElementById('alloc-grid-card').style.display = 'block';
+  renderSeatGrid('alloc-grid', result);
+  const statusEl = document.getElementById('alloc-status');
+  statusEl.style.display = 'flex';
+  if (result.unallocated.length>0) {
+    statusEl.className = 'alloc-status warning';
+    statusEl.textContent = `⚠️ ${result.unallocated.length} student(s) unallocated — try a larger room`;
+  } else {
+    statusEl.className = 'alloc-status success';
+    statusEl.textContent = `✓ All ${result.metrics.seated} students allocated successfully`;
+  }
+  logActivity(`Allocated ${result.metrics.seated}/${eligible.length} students for ${exam.subject}`, '🪑');
+  updateDashboard();
+  toast(`Allocation complete: ${result.metrics.seated} seated`, 'success');
+}
+
+function exportAllocationCSV() {
+  if (!S.lastAlloc) { toast('Run allocation first','error'); return; }
+  const {result,exam} = S.lastAlloc;
+  let csv = 'Position,Row,Col,Student ID,Name,Department,Year,Special Needs\n';
+  result.allocated.forEach(a => {
+    csv += `${a.pos},${a.row+1},${a.col+1},${a.student.id},"${a.student.name}","${a.student.department}",${a.student.year},${a.student.specialNeeds}\n`;
+  });
+  dlCSV(csv, `allocation_${exam.subject.replace(/\s+/g,'_')}_${Date.now()}.csv`);
+  toast('Allocation CSV exported','success');
+}
+
+// ═══════════════════════════════════════════════════════
+// COMPARISON
+// ═══════════════════════════════════════════════════════
+function populateCmpExam() {
+  const sel = document.getElementById('cmp-exam');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select exam...</option>';
+  S.exams.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.subject} — ${e.date}</option>`; });
+}
+
+function cmpDistChange(val) {
+  const v = parseFloat(val).toFixed(1)+'m';
+  document.getElementById('cmp-dist-val').textContent = v;
+  document.getElementById('cmp-dist-label').textContent = v;
+}
+
+function runBoth() {
+  const examId = document.getElementById('cmp-exam').value;
+  if (!examId) return;
+  const exam = S.exams.find(e=>e.id===examId);
+  const room = document.getElementById('cmp-room').value;
+  const config = ROOMS[room];
+  const dist = parseFloat(document.getElementById('cmp-dist').value);
+  const eligible = S.students.filter(s=>s.subjects.some(sub=>sub.toLowerCase()===exam.subject.toLowerCase()));
+  if (eligible.length===0) { toast('No students for this exam','error'); return; }
+
+  S.normalResult = distanceAlloc(eligible, config, 2, true);
+  S.pandemicResult = distanceAlloc(eligible, config, dist, true);
+
+  // Render Normal
+  renderSeatGrid('cmp-normal-grid', S.normalResult);
+  document.getElementById('n-seated').textContent = S.normalResult.metrics.seated;
+  document.getElementById('n-dist').textContent = S.normalResult.metrics.avgDist;
+  document.getElementById('n-eff').textContent = S.normalResult.metrics.efficiency + '%';
+  const ns = document.getElementById('cmp-normal-status');
+  ns.style.display='flex';
+  ns.className = S.normalResult.unallocated.length>0?'alloc-status warning':'alloc-status success';
+  ns.textContent = S.normalResult.unallocated.length>0 ? `⚠️ ${S.normalResult.unallocated.length} unallocated` : `✓ All ${S.normalResult.metrics.seated} seated`;
+
+  // Render Pandemic
+  renderSeatGrid('cmp-pandemic-grid', S.pandemicResult);
+  document.getElementById('p-seated').textContent = S.pandemicResult.metrics.seated;
+  document.getElementById('p-dist').textContent = S.pandemicResult.metrics.avgDist;
+  document.getElementById('p-eff').textContent = S.pandemicResult.metrics.efficiency + '%';
+  const ps = document.getElementById('cmp-pandemic-status');
+  ps.style.display='flex';
+  ps.className = S.pandemicResult.unallocated.length>0?'alloc-status warning':'alloc-status success';
+  ps.textContent = S.pandemicResult.unallocated.length>0 ? `⚠️ ${S.pandemicResult.unallocated.length} unallocated` : `✓ All ${S.pandemicResult.metrics.seated} seated`;
+
+  document.getElementById('cmp-export-normal').disabled = false;
+  document.getElementById('cmp-export-pandemic').disabled = false;
+
+  // Insights
+  const diff = S.normalResult.metrics.seated - S.pandemicResult.metrics.seated;
+  const pct = S.normalResult.metrics.seated>0 ? (diff/S.normalResult.metrics.seated*100).toFixed(1) : 0;
+  const card = document.getElementById('cmp-insights-card');
+  card.style.display='block';
+  document.getElementById('cmp-insights').innerHTML = `
+    <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin-bottom:16px">
+      <table class="cmp-table">
+        <thead><tr><th>Metric</th><th>Normal (2m)</th><th>Pandemic (${dist}m)</th><th>Difference</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Students Seated</td>
+            <td><span class="${S.normalResult.metrics.seated>=S.pandemicResult.metrics.seated?'cmp-better':''}">${S.normalResult.metrics.seated}</span></td>
+            <td><span class="${S.pandemicResult.metrics.seated>S.normalResult.metrics.seated?'cmp-better':''}">${S.pandemicResult.metrics.seated}</span></td>
+            <td style="color:var(--rose)">${diff>0?'-'+diff:'+'+Math.abs(diff)} (${Math.abs(pct)}%)</td>
+          </tr>
+          <tr>
+            <td>Avg Distance</td>
+            <td>${S.normalResult.metrics.avgDist} units</td>
+            <td>${S.pandemicResult.metrics.avgDist} units</td>
+            <td style="color:var(--green)">+${(parseFloat(S.pandemicResult.metrics.avgDist)-parseFloat(S.normalResult.metrics.avgDist)).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td>Room Efficiency</td>
+            <td><span class="${parseFloat(S.normalResult.metrics.efficiency)>=parseFloat(S.pandemicResult.metrics.efficiency)?'cmp-better':''}">${S.normalResult.metrics.efficiency}%</span></td>
+            <td>${S.pandemicResult.metrics.efficiency}%</td>
+            <td style="color:var(--rose)">${(parseFloat(S.normalResult.metrics.efficiency)-parseFloat(S.pandemicResult.metrics.efficiency)).toFixed(1)}%</td>
+          </tr>
+          <tr>
+            <td>Unallocated</td>
+            <td>${S.normalResult.unallocated.length}</td>
+            <td>${S.pandemicResult.unallocated.length}</td>
+            <td>+${S.pandemicResult.unallocated.length - S.normalResult.unallocated.length}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="insights-box">
+      <strong>💡 Key Insights</strong><br>
+      <ul>
+        <li>Normal 2m spacing seats <strong>${S.normalResult.metrics.seated}</strong> students; pandemic ${dist}m seats <strong>${S.pandemicResult.metrics.seated}</strong></li>
+        <li>Capacity drops by <strong>${Math.abs(pct)}%</strong> when switching to pandemic protocols</li>
+        <li>Average spacing increases from <strong>${S.normalResult.metrics.avgDist}</strong> to <strong>${S.pandemicResult.metrics.avgDist}</strong> units</li>
+        ${S.pandemicResult.unallocated.length>0 ? `<li>⚠️ ${S.pandemicResult.unallocated.length} students need an additional room in pandemic mode</li>` : '<li>✓ All students can be accommodated at this distance setting</li>'}
+      </ul>
+    </div>`;
+  logActivity(`Compared Normal vs Pandemic (${dist}m) for ${exam.subject}`, '🔀');
+}
+
+function exportCmpCSV(mode) {
+  const r = mode==='normal' ? S.normalResult : S.pandemicResult;
+  if (!r) { toast('Run comparison first','error'); return; }
+  const dist = mode==='normal' ? '2.0m' : document.getElementById('cmp-dist').value+'m';
+  let csv = `Row,Col,Position,Student ID,Name,Department,Year,Special Needs,Distance\n`;
+  r.allocated.forEach(a => {
+    csv += `${a.row+1},${a.col+1},${a.pos},${a.student.id},"${a.student.name}","${a.student.department}",${a.student.year},${a.student.specialNeeds},${dist}\n`;
+  });
+  dlCSV(csv, `${mode}_allocation_${Date.now()}.csv`);
+  toast(`${mode} allocation exported`, 'success');
+}
+
+function exportCmpReport() {
+  if (!S.normalResult || !S.pandemicResult) { toast('Run comparison first','error'); return; }
+  let csv = 'Metric,Normal (2m),Pandemic\n';
+  csv += `Students Seated,${S.normalResult.metrics.seated},${S.pandemicResult.metrics.seated}\n`;
+  csv += `Avg Distance,${S.normalResult.metrics.avgDist},${S.pandemicResult.metrics.avgDist}\n`;
+  csv += `Efficiency,${S.normalResult.metrics.efficiency}%,${S.pandemicResult.metrics.efficiency}%\n`;
+  csv += `Unallocated,${S.normalResult.unallocated.length},${S.pandemicResult.unallocated.length}\n`;
+  dlCSV(csv, `comparison_report_${Date.now()}.csv`);
+  toast('Comparison report exported', 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+// PANDEMIC VIEW
+// ═══════════════════════════════════════════════════════
+function populatePanExam() {
+  const sel = document.getElementById('pan-exam');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select exam...</option>';
+  S.exams.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.subject} — ${e.date} (${e.timeSlot})</option>`; });
+}
+
+const PAN_GUIDELINES = {
+  1:   'Emergency capacity mode — minimal separation',
+  1.5: 'Minimal distancing protocol',
+  2:   'Basic social distancing standard',
+  2.5: 'Enhanced safety protocol',
+  3:   'Moderate pandemic protocols',
+  3.5: 'High safety standard',
+  4:   'Maximum social distancing for high-risk environments'
+};
+
+function panDistChange(val) {
+  const v = parseFloat(val);
+  document.getElementById('pan-dist-val').textContent = v.toFixed(1) + 'm';
+  document.getElementById('pan-guideline').textContent = v + 'm distance: ' + (PAN_GUIDELINES[v]||PAN_GUIDELINES[4]);
+}
+
+function runPandemic() {
+  const examId = document.getElementById('pan-exam').value;
+  const roomType = document.getElementById('pan-room').value;
+  const dist = parseFloat(document.getElementById('pan-dist').value);
+  const prioritizeSN = document.getElementById('pan-special').checked;
+  if (!examId) { toast('Select an exam first','error'); return; }
+  const exam = S.exams.find(e=>e.id===examId);
+  const eligible = S.students.filter(s=>s.subjects.some(sub=>sub.toLowerCase()===exam.subject.toLowerCase()));
+  if (eligible.length===0) { toast('No students for this exam subject','error'); return; }
+  const config = ROOMS[roomType];
+  const result = distanceAlloc(eligible, config, dist, prioritizeSN);
+  // Update metrics
+  document.getElementById('pan-seated').textContent = result.metrics.seated;
+  document.getElementById('pan-total').textContent = eligible.length;
+  document.getElementById('pan-dist-m').textContent = result.metrics.avgDist + 'm';
+  document.getElementById('pan-eff').textContent = result.metrics.efficiency + '%';
+  document.getElementById('pan-special-c').textContent = result.allocated.filter(a=>a.student.specialNeeds).length;
+  // Grid
+  renderSeatGrid('pan-grid', result);
+  // Status
+  const statusEl = document.getElementById('pan-status');
+  statusEl.style.display='flex';
+  if (result.unallocated.length>0) {
+    statusEl.className='alloc-status warning';
+    statusEl.textContent=`⚠️ ${result.unallocated.length} student(s) could not be seated at ${dist}m. Consider a larger room.`;
+  } else {
+    statusEl.className='alloc-status success';
+    statusEl.textContent=`✓ All ${result.metrics.seated} students allocated with ${dist}m social distancing`;
+  }
+  // Capacity box
+  const eff = parseFloat(result.metrics.efficiency);
+  const capBox = document.getElementById('pan-capacity-box');
+  capBox.style.display='block';
+  const cls = result.unallocated.length>0?'var(--rose)':eff>80?'var(--amber)':'var(--green)';
+  const ico = result.unallocated.length>0?'🔴':eff>80?'🟡':'🟢';
+  capBox.innerHTML=`<div style="padding:12px 14px;border-radius:8px;border:1px solid ${cls};background:${cls}1a;font-size:12px;color:${cls};display:flex;gap:10px">
+    <span>${ico}</span>
+    <div>${result.unallocated.length>0?`Capacity exceeded — ${result.unallocated.length} student(s) need another room`:eff>80?`Near capacity (${eff}%) — consider larger room`:`Sufficient capacity (${eff}% utilization)`}</div>
+  </div>`;
+  // Analysis
+  document.getElementById('pan-analysis').innerHTML=`
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+      <strong style="color:var(--text-primary)">Current: ${dist}m distance</strong>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text-secondary)">
+      <div style="display:flex;justify-content:space-between"><span>Students seated:</span><strong>${result.metrics.seated}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span>Empty seats:</span><strong>${config.capacity - result.metrics.seated}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span>Avg spacing:</span><strong>${result.metrics.avgDist}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span>Utilization:</span><strong>${result.metrics.efficiency}%</strong></div>
+    </div>
+    <div class="divider" style="margin:12px 0"></div>
+    <div class="insights-box" style="font-size:12px">
+      <strong>Recommendation:</strong><br>
+      ${result.unallocated.length>0 ? `For ${eligible.length} students at ${dist}m: upgrade to ${dist>=3?'Auditorium':'Large Hall or Auditorium'}` : `${roomType} is optimal for ${eligible.length} students at ${dist}m`}
+    </div>`;
+  // Enable exports
+  document.getElementById('pan-export-btn').disabled = false;
+  document.getElementById('pan-print-btn').disabled = false;
+  S.pandemicResult = result; S.allocations++; updateDashboard();
+  logActivity(`Pandemic allocation for ${exam.subject} @ ${dist}m`, '🦠');
+  toast(`Allocation complete: ${result.metrics.seated} seated`, 'success');
+}
+
+function exportPandemicCSV() {
+  if (!S.pandemicResult) { toast('Run allocation first','error'); return; }
+  const dist = document.getElementById('pan-dist').value;
+  let csv = 'Row,Col,Position,Student ID,Name,Department,Year,Special Needs,Distance Setting\n';
+  S.pandemicResult.allocated.forEach(a=>{
+    csv+=`${a.row+1},${a.col+1},${a.pos},${a.student.id},"${a.student.name}","${a.student.department}",${a.student.year},${a.student.specialNeeds},${dist}m\n`;
+  });
+  csv+=`\nSummary\nTotal Students,${S.pandemicResult.metrics.total}\nSeated,${S.pandemicResult.metrics.seated}\nUnallocated,${S.pandemicResult.unallocated.length}\nDistance,${dist}m\nEfficiency,${S.pandemicResult.metrics.efficiency}%\n`;
+  dlCSV(csv, `pandemic_${dist}m_${Date.now()}.csv`);
+  toast('Pandemic allocation exported', 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+// CSV TOOLS
+// ═══════════════════════════════════════════════════════
+function switchCsvTab(tab, btn) {
+  document.querySelectorAll('.csv-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.csv-creator-section').forEach(s=>s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('csv-tab-'+tab).classList.add('active');
+}
+
+// Upload
+function handleUpload(e, type) {
+  const file = e.target.files[0];
+  if (!file) return;
+  Papa.parse(file, {
+    header:true, skipEmptyLines:true,
+    complete:(res)=>{
+      type==='students' ? previewStudents(res.data, file.name) : previewExams(res.data, file.name);
+    },
+    error:(err)=>toast('CSV parse error: '+err.message,'error')
+  });
+}
+
+function dropOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('dragover'); }
+function dropLeave(id) { document.getElementById(id).classList.remove('dragover'); }
+function dropFile(e, type) {
+  e.preventDefault();
+  dropLeave(type==='students'?'students-drop':'exams-drop');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  Papa.parse(file, {
+    header:true, skipEmptyLines:true,
+    complete:(res)=>{ type==='students'?previewStudents(res.data,file.name):previewExams(res.data,file.name); },
+    error:(err)=>toast('Error: '+err.message,'error')
+  });
+}
+
+function previewStudents(data, fname) {
+  const parsed = data.map((r,i)=>({
+    id: r.ID||`STU_${Date.now()}_${i}`, name:r.Name, department:r.Department,
+    year:parseInt(r.Year)||1, subjects:(r.Subjects||'').split(',').map(s=>s.trim()).filter(Boolean),
+    specialNeeds:r.SpecialNeeds==='true'||r.SpecialNeeds==='TRUE', source:'CSV'
+  })).filter(s=>s.name&&s.department);
+  const preview = document.getElementById('students-preview');
+  preview.className = 'csv-preview show';
+  preview.innerHTML = `
+    <div class="preview-header">
+      <span>✅ ${parsed.length} valid records from <strong>${fname}</strong></span>
+      <span style="font-size:12px;color:var(--text-muted)">${data.length-parsed.length} skipped</span>
+    </div>
+    <div style="overflow-x:auto;max-height:180px">
+      <table><thead><tr><th>ID</th><th>Name</th><th>Dept</th><th>Subjects</th></tr></thead>
+      <tbody>${parsed.slice(0,5).map(s=>`<tr><td class="td-bold">${s.id}</td><td>${s.name}</td><td>${s.department}</td><td>${s.subjects.join(', ')}</td></tr>`).join('')}</tbody></table>
+      ${parsed.length>5?`<p style="padding:8px 12px;font-size:11px;color:var(--text-muted)">...and ${parsed.length-5} more</p>`:''}
+    </div>
+    <div class="preview-actions">
+      <button class="btn btn-secondary btn-sm" onclick="cancelPreview('students')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick='confirmStudents(${JSON.stringify(parsed).replace(/'/g,"&#39;")})'>Import ${parsed.length} Students</button>
+    </div>`;
+}
+
+function confirmStudents(data) {
+  S.students.push(...data);
+  toast(`Imported ${data.length} students`, 'success');
+  logActivity(`Imported ${data.length} students from CSV`, '📤');
+  cancelPreview('students'); updateDashboard();
+}
+
+function previewExams(data, fname) {
+  const parsed = data.map((r,i)=>({
+    id:r.ID||`EXAM_${Date.now()}_${i}`, subject:r.Subject, date:r.Date,
+    timeSlot:r.TimeSlot||'morning', duration:parseInt(r.Duration)||120,
+    requirements:(r.SpecialRequirements||'').split(',').map(s=>s.trim()).filter(Boolean), source:'CSV'
+  })).filter(e=>e.subject&&e.date);
+  const preview = document.getElementById('exams-preview');
+  preview.className = 'csv-preview show';
+  preview.innerHTML = `
+    <div class="preview-header">
+      <span>✅ ${parsed.length} valid records from <strong>${fname}</strong></span>
+    </div>
+    <div style="overflow-x:auto;max-height:180px">
+      <table><thead><tr><th>ID</th><th>Subject</th><th>Date</th><th>Time</th></tr></thead>
+      <tbody>${parsed.slice(0,5).map(e=>`<tr><td class="td-bold">${e.id}</td><td>${e.subject}</td><td>${e.date}</td><td>${e.timeSlot}</td></tr>`).join('')}</tbody></table>
+    </div>
+    <div class="preview-actions">
+      <button class="btn btn-secondary btn-sm" onclick="cancelPreview('exams')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick='confirmExams(${JSON.stringify(parsed).replace(/'/g,"&#39;")})'>Import ${parsed.length} Exams</button>
+    </div>`;
+}
+
+function confirmExams(data) {
+  S.exams.push(...data);
+  toast(`Imported ${data.length} exams`, 'success');
+  logActivity(`Imported ${data.length} exams from CSV`, '📤');
+  cancelPreview('exams'); updateDashboard();
+}
+
+function cancelPreview(type) {
+  const el = document.getElementById(type+'-preview');
+  el.className = 'csv-preview';
+  el.innerHTML = '';
+  document.getElementById(type+'-file').value = '';
+}
+
+// CSV Creator
+let sRowCount=0, eRowCount=0;
+
+function addStudentRow() {
+  sRowCount++;
+  const id = 'sr'+sRowCount;
+  const div = document.createElement('div');
+  div.className='row-entry'; div.id=id;
+  div.innerHTML=`
+    <input placeholder="STU_${String(sRowCount).padStart(3,'0')}" title="ID">
+    <input placeholder="Full Name" title="Name">
+    <input placeholder="Department" title="Department">
+    <input placeholder="Year" type="number" min="1" max="5" value="1" title="Year" style="max-width:60px">
+    <input placeholder="Subjects (comma-sep)" title="Subjects">
+    <select title="SpecialNeeds"><option value="false">Normal</option><option value="true">Special Needs</option></select>
+    <button class="btn btn-danger btn-sm" onclick="removeRow('${id}','student')">✕</button>`;
+  div.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',updateStudentCsvPreview));
+  document.getElementById('student-rows').appendChild(div);
+  updateStudentCsvPreview();
+}
+
+function addExamRow() {
+  eRowCount++;
+  const id='er'+eRowCount;
+  const div=document.createElement('div');
+  div.className='row-entry'; div.id=id;
+  div.innerHTML=`
+    <input placeholder="EXAM_${String(eRowCount).padStart(3,'0')}" title="ID">
+    <input placeholder="Subject" title="Subject">
+    <input type="date" title="Date">
+    <select title="TimeSlot"><option>morning</option><option>afternoon</option><option>evening</option></select>
+    <input placeholder="Duration(min)" type="number" value="120" style="max-width:100px" title="Duration">
+    <input placeholder="Requirements" title="SpecialRequirements">
+    <button class="btn btn-danger btn-sm" onclick="removeRow('${id}','exam')">✕</button>`;
+  div.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',updateExamCsvPreview));
+  document.getElementById('exam-rows').appendChild(div);
+  updateExamCsvPreview();
+}
+
+function removeRow(id, type) {
+  document.getElementById(id)?.remove();
+  type==='student' ? updateStudentCsvPreview() : updateExamCsvPreview();
+}
+
+function updateStudentCsvPreview() {
+  const rows=[...document.querySelectorAll('#student-rows .row-entry')];
+  let csv='ID,Name,Department,Year,Subjects,SpecialNeeds\n';
+  rows.forEach(r=>{
+    const inputs=[...r.querySelectorAll('input,select')];
+    csv+=inputs.map((el,i)=>i===4?`"${el.value}"`:el.value).join(',')+'\n';
+  });
+  document.getElementById('student-csv-preview').textContent=csv;
+}
+
+function updateExamCsvPreview() {
+  const rows=[...document.querySelectorAll('#exam-rows .row-entry')];
+  let csv='ID,Subject,Date,TimeSlot,Duration,SpecialRequirements\n';
+  rows.forEach(r=>{
+    const inputs=[...r.querySelectorAll('input,select')];
+    csv+=inputs.map(el=>el.value).join(',')+'\n';
+  });
+  document.getElementById('exam-csv-preview').textContent=csv;
+}
+
+function downloadCreatedCSV(type) {
+  const csv = type==='students'
+    ? document.getElementById('student-csv-preview').textContent
+    : document.getElementById('exam-csv-preview').textContent;
+  dlCSV(csv, `created_${type}_${Date.now()}.csv`);
+  toast(`${type} CSV downloaded`,'success');
+}
+
+function importCreatedStudents() {
+  const rows=[...document.querySelectorAll('#student-rows .row-entry')];
+  const students = rows.map(r=>{
+    const inputs=[...r.querySelectorAll('input,select')];
+    const [id,name,dept,year,subs,sn]=inputs.map(el=>el.value);
+    if (!name||!dept) return null;
+    return {id:id||'STU_'+Date.now(),name,department:dept,year:parseInt(year)||1,
+      subjects:subs.split(',').map(s=>s.trim()).filter(Boolean),specialNeeds:sn==='true',source:'Created'};
+  }).filter(Boolean);
+  S.students.push(...students);
+  toast(`Imported ${students.length} students`,'success');
+  logActivity(`Created and imported ${students.length} students`,'✏️');
+  updateDashboard();
+}
+
+function importCreatedExams() {
+  const rows=[...document.querySelectorAll('#exam-rows .row-entry')];
+  const exams = rows.map(r=>{
+    const inputs=[...r.querySelectorAll('input,select')];
+    const [id,subject,date,timeSlot,duration,reqs]=inputs.map(el=>el.value);
+    if (!subject||!date) return null;
+    return {id:id||'EXAM_'+Date.now(),subject,date,timeSlot,duration:parseInt(duration)||120,
+      requirements:reqs.split(',').map(s=>s.trim()).filter(Boolean),source:'Created'};
+  }).filter(Boolean);
+  S.exams.push(...exams);
+  toast(`Imported ${exams.length} exams`,'success');
+  logActivity(`Created and imported ${exams.length} exams`,'✏️');
+  updateDashboard();
+}
+
+// Templates
+function downloadTemplate(type) {
+  let csv='';
+  if (type==='students') {
+    csv='ID,Name,Department,Year,Subjects,SpecialNeeds\n';
+    csv+='STU_001,Alice Johnson,Computer Science,2,"Data Structures, Algorithms",false\n';
+    csv+='STU_002,Bob Smith,Computer Science,2,"Data Structures, Database Systems",true\n';
+    csv+='STU_003,Carol White,Mathematics,3,"Calculus, Linear Algebra",false\n';
+    dlCSV(csv,'students_template.csv');
+  } else {
+    csv='ID,Subject,Date,TimeSlot,Duration,SpecialRequirements\n';
+    csv+='EXAM_001,Data Structures,2025-12-15,morning,180,\n';
+    csv+='EXAM_002,Algorithms,2025-12-16,afternoon,120,isolated\n';
+    dlCSV(csv,'exams_template.csv');
+  }
+  toast(`${type} template downloaded`,'success');
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════
+function dlCSV(content, filename) {
+  const blob = new Blob([content], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+let toastTimer;
+function toast(msg, type='info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.className=''; }, 3000);
+}
+</script>
+</body>
+</html>
